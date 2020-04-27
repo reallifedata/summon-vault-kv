@@ -1,17 +1,20 @@
-#!/bin/python
+#!/usr/bin/env python
 
 import os
 import os.path
 import re
 import subprocess
 import sys
+import json
 
 def print_stderr(val):
     os.write(2, val)
 
-def fetch_secret_from_vault_kv(secretpath):
+def fetch_secret_from_vault_kv(secret):
     """ given a secretpath (vault kv-engine path) read/print the secret """
-    command = 'vault read {}'.format(secretpath)
+    secretpath = secret.split(":")[0]
+    key = secret.split(":")[1]
+    command = 'vault read {} -format=json'.format(secretpath)
     process_output = ''
     print_stderr('executing shell command: [\n\t{}\n]'.format(command))
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -26,17 +29,15 @@ def fetch_secret_from_vault_kv(secretpath):
     except KeyboardInterrupt as exception:
         print_stderr('shell command cancelled by keyboard interrupt...')
         raise exception
-    result = re.search(r'^data\s*map\[.*:(.*)\]', process_output, re.MULTILINE).group(1)
-    print result
+    print(json.loads(process_output)['data'][key])
     
 
 
 if __name__ == "__main__":
     # require profile to be explicitly supplied as a command-line argument
     if len(sys.argv) != 2:
-        raise StandardError('USAGE: -v --version or secretpath')
+        raise StandardError('USAGE: -v --version or secretpath:key')
     elif sys.argv[1] == '-v' or  sys.argv[1] == '--version':
         print('1.0.0')
     else:
         fetch_secret_from_vault_kv(sys.argv[1])
-
